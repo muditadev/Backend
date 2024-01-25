@@ -153,6 +153,7 @@ exports.registerMentee = async (req, res) => {
 
     // Retrieve the user_id generated during the insertion
     const userId = rows[0].user_id;
+    const userEmail = rows[0].email;
 
     // Step 2: Insert data into the 'mentees' table
     const menteeInsertQuery = `
@@ -164,10 +165,12 @@ exports.registerMentee = async (req, res) => {
 
     await db.query(menteeInsertQuery, menteeInsertValues);
 
-    return res.status(201).json({
-      success: true,
-      message: "The Mentees registration was successful",
-    });
+    // return res.status(201).json({
+    //   success: true,
+    //   message: "The Mentees registration was successful",
+    // });
+    req.user = { user_id: userId, email: userEmail };
+    return exports.login(req, res);
   } catch (error) {
     console.error(error.message);
     return res.status(500).json({
@@ -178,6 +181,7 @@ exports.registerMentee = async (req, res) => {
 
 // Register Mentors
 
+/*
 exports.registerMentor = async (req, res) => {
   const { name, email, password, gender, address, mobile } = req.body;
   const {
@@ -246,6 +250,78 @@ exports.registerMentor = async (req, res) => {
     });
   }
 };
+*/
+
+exports.registerMentor = async (req, res) => {
+  const { name, email, password, gender, address, mobile } = req.body;
+  const {
+    experience,
+    degree,
+    medical_lic_num,
+    pancard_img,
+    adharcard_front_img,
+    adharcard_back_img,
+    doctor_reg_cert_img,
+  } = req.body;
+
+  try {
+    // Hash the password before storing it
+    const hashedPassword = await hash(password, 10);
+
+    // Step 1: Insert data into the 'users' table
+    const userInsertQuery = `
+      INSERT INTO users(name, email, password, gender, address, mobile, role)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING user_id, email;
+    `;
+
+    const userInsertValues = [
+      name,
+      email,
+      hashedPassword,
+      gender,
+      address,
+      mobile,
+      "mentor",
+    ];
+
+    const { rows } = await db.query(userInsertQuery, userInsertValues);
+
+    // Retrieve the user_id and email generated during the insertion
+    const userId = rows[0].user_id;
+    const userEmail = rows[0].email;
+
+    // Step 2: Insert data into the 'mentors' table
+    const mentorInsertQuery = `
+      INSERT INTO mentors(user_id, experience, degree, medical_lic_num, pancard_img, adharcard_front_img, adharcard_back_img, doctor_reg_cert_img)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8);
+    `;
+
+    const mentorInsertValues = [
+      userId,
+      experience,
+      degree,
+      medical_lic_num,
+      pancard_img,
+      adharcard_front_img,
+      adharcard_back_img,
+      doctor_reg_cert_img,
+    ];
+
+    await db.query(mentorInsertQuery, mentorInsertValues);
+
+    // Log in the user automatically after successful registration
+    req.user = { user_id: userId, email: userEmail };
+    return exports.login(req, res);
+  } catch (error) {
+    console.error(error.message);
+    return res.status(500).json({
+      error: error.message,
+    });
+  }
+};
+
+// Login
 
 exports.login = async (req, res) => {
   let user = req.user;
