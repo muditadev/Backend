@@ -16,9 +16,15 @@ app.use(passport.initialize());
 
 //import routes
 const authRoutes = require("./src/routes/auth");
+const quizRoutes = require("./src/routes/quiz");
+const questionRoutes = require("./src/routes/quiz_Question");
+const answerRoutes = require("./src/routes/quiz_Answer");
 
 //initialize routes
 app.use("/api/v1", authRoutes);
+app.use("/api/v1/quiz", quizRoutes);
+app.use("/api/v1/question", questionRoutes);
+app.use("/api/v1/answer", answerRoutes);
 
 //app start
 const appStart = () => {
