@@ -65,3 +65,45 @@ CREATE TABLE UserAnswers (
     question_id INT REFERENCES Questions(question_id),
     answer_int INTEGER
 );
+
+CREATE TABLE SOS (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    video VARCHAR(255),
+    contact VARCHAR(255)
+);
+
+
+CREATE TABLE Banner (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    subtitle VARCHAR(255),
+    link VARCHAR(255),
+    cover_img VARCHAR(255)
+);
+
+
+CREATE TABLE Blog (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    cover_img VARCHAR(255),
+    description TEXT
+);
+
+
+CREATE TABLE Technique (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    cover_img VARCHAR(255),
+    steps TEXT,
+    music VARCHAR(255)
+);
+
+
+CREATE TABLE Social_Media (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    cover_img VARCHAR(255),
+    links VARCHAR(255)
+);

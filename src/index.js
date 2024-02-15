@@ -19,12 +19,22 @@ const authRoutes = require("./routes/auth");
 const quizRoutes = require("./routes/quiz");
 const questionRoutes = require("./routes/quiz_Question");
 const answerRoutes = require("./routes/quiz_Answer");
+const sosRoutes = require("./routes/sos");
+const blogRoutes = require("./routes/blog");
+const bannerRoutes = require("./routes/banner");
+const socialRoutes = require("./routes/social_media");
+const techniqueRoutes = require("./routes/technique");
 
 //initialize routes
 app.use("/api/v1", authRoutes);
 app.use("/api/v1/quiz", quizRoutes);
 app.use("/api/v1/question", questionRoutes);
 app.use("/api/v1/answer", answerRoutes);
+app.use("/api/v1/blog", blogRoutes);
+app.use("/api/v1/banner", bannerRoutes);
+app.use("/api/v1/sos", sosRoutes);
+app.use("/api/v1/social", socialRoutes);
+app.use("/api/v1/technique", techniqueRoutes);
 
 //app start
 const appStart = () => {

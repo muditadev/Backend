@@ -45,7 +45,7 @@ exports.getMentorById = async (req, res) => {
 
   try {
     const query = `
-      SELECT users.user_id, users.name, users.email, users.mobile, mentors.experience, mentors.degree, mentors.medical_lic_num
+      SELECT users.user_id, users.name, users.email, users.mobile, mentors.experience, mentors.degree, mentors.medical_lic_num,  mentors.pancard_img, mentors.adharcard_front_img, mentors.adharcard_back_img, mentors.doctor_reg_cert_img
       FROM users
       INNER JOIN mentors ON users.user_id = mentors.user_id
       WHERE users.user_id = $1;
@@ -72,21 +72,39 @@ exports.getMentorById = async (req, res) => {
   }
 };
 
-// Get ALL Mentees
+// Get All Mentees
 
 exports.getAllMentees = async (req, res) => {
+  const { page = 1, limit = 10 } = req.query; // Default to page 1 and limit 10 per page
+  const offset = (page - 1) * limit;
+
   try {
+    // Query to count total number of mentees
+    const countQuery = `
+      SELECT COUNT(*) AS total_count
+      FROM users
+      WHERE role = 'mentee';
+    `;
+    const totalCountResult = await db.query(countQuery);
+    const totalCount = parseInt(totalCountResult.rows[0].total_count);
+
+    // Query to fetch paginated mentees
     const query = `
       SELECT users.user_id, users.name, users.email, users.mobile, mentees.dob, mentees.occupation
       FROM users
       INNER JOIN mentees ON users.user_id = mentees.user_id
-      WHERE users.role = 'mentee';
+      WHERE users.role = 'mentee'
+      LIMIT $1 OFFSET $2;
     `;
-
-    const { rows } = await db.query(query);
+    const { rows } = await db.query(query, [limit, offset]);
 
     return res.status(200).json({
       success: true,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+      },
       data: rows,
     });
   } catch (error) {
@@ -97,21 +115,38 @@ exports.getAllMentees = async (req, res) => {
   }
 };
 
-// Get ALL Mentors
-
+// Get all mentors with pagination
 exports.getAllMentors = async (req, res) => {
+  const { page = 1, limit = 10 } = req.query; // Default to page 1 and limit 10 per page
+  const offset = (page - 1) * limit;
+
   try {
+    // Query to count total number of mentors
+    const countQuery = `
+      SELECT COUNT(*) AS total_count
+      FROM users
+      WHERE role = 'mentor';
+    `;
+    const totalCountResult = await db.query(countQuery);
+    const totalCount = parseInt(totalCountResult.rows[0].total_count);
+
+    // Query to fetch paginated mentors
     const query = `
-      SELECT users.user_id, users.name, users.email, users.mobile, mentors.experience, mentors.degree, mentors.medical_lic_num
+      SELECT users.user_id, users.name, users.email, users.mobile, mentors.experience, mentors.degree, mentors.medical_lic_num, mentors.pancard_img, mentors.adharcard_front_img, mentors.adharcard_back_img, mentors.doctor_reg_cert_img
       FROM users
       INNER JOIN mentors ON users.user_id = mentors.user_id
-      WHERE users.role = 'mentor';
+      WHERE users.role = 'mentor'
+      LIMIT $1 OFFSET $2;
     `;
-
-    const { rows } = await db.query(query);
+    const { rows } = await db.query(query, [limit, offset]);
 
     return res.status(200).json({
       success: true,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+      },
       data: rows,
     });
   } catch (error) {
@@ -252,21 +287,20 @@ exports.registerMentor = async (req, res) => {
 };
 */
 
-exports.registerMentor = async (req, res) => {
+exports.registerMentor = async (req, res, formattedFileUrls) => {
   const { name, email, password, gender, address, mobile } = req.body;
-  const {
-    experience,
-    degree,
-    medical_lic_num,
-    pancard_img,
-    adharcard_front_img,
-    adharcard_back_img,
-    doctor_reg_cert_img,
-  } = req.body;
+  const { experience, degree, medical_lic_num } = req.body;
 
   try {
     // Hash the password before storing it
     const hashedPassword = await hash(password, 10);
+    const pancard_img = formattedFileUrls.pancard_img[0].downloadURL;
+    const adharcard_front_img =
+      formattedFileUrls.adharcard_front_img[0].downloadURL;
+    const adharcard_back_img =
+      formattedFileUrls.adharcard_back_img[0].downloadURL;
+    const doctor_reg_cert_img =
+      formattedFileUrls.doctor_reg_cert_img[0].downloadURL;
 
     // Step 1: Insert data into the 'users' table
     const userInsertQuery = `
