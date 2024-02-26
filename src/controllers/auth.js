@@ -11,7 +11,7 @@ exports.getMenteeById = async (req, res) => {
 
   try {
     const query = `
-      SELECT users.user_id, users.name, users.email, users.mobile, mentees.dob, mentees.occupation
+      SELECT users.user_id, users.name, users.email, users.mobile, users.profile_img, mentees.dob, mentees.occupation
       FROM users
       INNER JOIN mentees ON users.user_id = mentees.user_id
       WHERE users.user_id = $1;
@@ -45,7 +45,7 @@ exports.getMentorById = async (req, res) => {
 
   try {
     const query = `
-      SELECT users.user_id, users.name, users.email, users.mobile, mentors.experience, mentors.degree, mentors.medical_lic_num,  mentors.pancard_img, mentors.adharcard_front_img, mentors.adharcard_back_img, mentors.doctor_reg_cert_img
+      SELECT users.user_id, users.name, users.email, users.mobile, users.profile_img, mentors.experience, mentors.degree, mentors.medical_lic_num,  mentors.pancard_img, mentors.adharcard_front_img, mentors.adharcard_back_img, mentors.doctor_reg_cert_img
       FROM users
       INNER JOIN mentors ON users.user_id = mentors.user_id
       WHERE users.user_id = $1;
@@ -90,7 +90,7 @@ exports.getAllMentees = async (req, res) => {
 
     // Query to fetch paginated mentees
     const query = `
-      SELECT users.user_id, users.name, users.email, users.mobile, mentees.dob, mentees.occupation
+      SELECT users.user_id, users.name, users.email, users.mobile, users.profile_img, mentees.dob, mentees.occupation
       FROM users
       INNER JOIN mentees ON users.user_id = mentees.user_id
       WHERE users.role = 'mentee'
@@ -132,7 +132,7 @@ exports.getAllMentors = async (req, res) => {
 
     // Query to fetch paginated mentors
     const query = `
-      SELECT users.user_id, users.name, users.email, users.mobile, mentors.experience, mentors.degree, mentors.medical_lic_num, mentors.pancard_img, mentors.adharcard_front_img, mentors.adharcard_back_img, mentors.doctor_reg_cert_img
+      SELECT users.user_id, users.name, users.email, users.mobile, mentors.experience, mentors.degree, mentors.medical_lic_num, users.profile_img, mentors.pancard_img, mentors.adharcard_front_img, mentors.adharcard_back_img, mentors.doctor_reg_cert_img
       FROM users
       INNER JOIN mentors ON users.user_id = mentors.user_id
       WHERE users.role = 'mentor'
@@ -465,6 +465,7 @@ exports.updateMenteeProfile = async (req, res, formattedFileUrls) => {
 
 // Update Mentor Profile
 
+/*
 exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
   const { user_id } = req.params; // Assuming user_id is available in the request
   console.log(user_id);
@@ -523,6 +524,129 @@ exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
       user_id,
     ];
     await db.query(updateMentorQuery, updateMentorValues);
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Mentor profile updated successfully",
+      // user: updatedUser, // Return the updated user details
+    });
+  } catch (error) {
+    console.error(error.message);
+    return res.status(500).json({
+      error: error.message,
+    });
+  }
+};
+*/
+
+exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
+  const { user_id } = req.params;
+  const {
+    name,
+    gender,
+    address,
+    mobile,
+    experience,
+    degree,
+    medical_lic_num,
+  } = req.body;
+
+  try {
+    const dbQueries = [];
+
+    // Fetch all mentor-specific information from the database
+    const userInfoQuery = `
+      SELECT profile_img
+      FROM users
+      WHERE user_id = $1;
+    `;
+    const userInfoResult = await db.query(userInfoQuery, [user_id]);
+    const userInfo = userInfoResult.rows[0];
+
+    //Fetch All Mentor's Details
+    const mentorInfoQuery = `SELECT pancard_img = $1, adharcard_front_img = $2, adharcard_back_img = $3, doctor_reg_cert_img = $4 FROM mentors WHERE user_id = $5;`;
+    const mentorInfoResult = await db.query(mentorInfoQuery, [user_id]);
+    const mentorInfo = mentorInfoResult.rows[0];
+
+    // Check if formattedFileUrls is empty, if so, use previous values
+    if (!formattedFileUrls) {
+      console.log("Formatted file URLs are empty. Using previous values.");
+      formattedFileUrls = {};
+    }
+
+    // Check if each file is uploaded, if not, use the previous value
+    const filesToUpdate = [
+      { key: "pancard_img", value: formattedFileUrls.pancard_img?.[0] },
+      {
+        key: "adharcard_front_img",
+        value: formattedFileUrls.adharcard_front_img?.[0],
+      },
+      {
+        key: "adharcard_back_img",
+        value: formattedFileUrls.adharcard_back_img?.[0],
+      },
+      {
+        key: "doctor_reg_cert_img",
+        value: formattedFileUrls.doctor_reg_cert_img?.[0],
+      },
+    ];
+
+    for (const file of filesToUpdate) {
+      const fileUrl = file.value?.downloadURL;
+      const previousValue = fileUrl ? fileUrl : userInfo[file.key];
+      dbQueries.push(previousValue);
+    }
+
+    // Check if profile_img is uploaded, if not, use the previous value
+    const profile_img =
+      formattedFileUrls.profile_img?.[0]?.downloadURL || userInfo.profile_img;
+
+    // Update the user's basic information
+    const updateUserQuery = `
+      UPDATE users
+      SET name = $1, gender = $2, address = $3, mobile = $4, profile_img = $5
+      WHERE user_id = $6
+      RETURNING *;
+    `;
+    const updateUserValues = [
+      name,
+      gender,
+      address,
+      mobile,
+      profile_img,
+      user_id,
+    ];
+    dbQueries.push(db.query(updateUserQuery, updateUserValues));
+
+    // Update the mentor-specific information
+    const updateMentorQuery = `
+      UPDATE mentors
+      SET experience = $1, degree = $2, medical_lic_num = $3, pancard_img = $4, adharcard_front_img = $5, adharcard_back_img = $6, doctor_reg_cert_img = $7
+      WHERE user_id = $8;
+    `;
+    const updateMentorValues = [
+      experience,
+      degree,
+      medical_lic_num,
+      dbQueries[0],
+      dbQueries[1],
+      dbQueries[2],
+      dbQueries[3],
+      user_id,
+    ];
+    dbQueries.push(db.query(updateMentorQuery, updateMentorValues));
+
+    // Execute all queries in parallel
+    const results = await Promise.all(dbQueries);
+
+    const updatedUser = results[4].rows[0]; // Fetch the updated user details
 
     if (!updatedUser) {
       return res.status(404).json({
