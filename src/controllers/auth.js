@@ -405,3 +405,141 @@ exports.logout = async (req, res) => {
     });
   }
 };
+
+// Update Profile
+
+// Update Mentee Profile
+exports.updateMenteeProfile = async (req, res, formattedFileUrls) => {
+  const { user_id } = req.params; // Assuming user_id is available in the request
+  const { name, gender, dob, address, mobile, occupation } = req.body;
+
+  try {
+    const profile_img = formattedFileUrls.profile_img[0].downloadURL;
+
+    // Update the user's basic information (excluding email)
+    const updateUserQuery = `
+      UPDATE users
+      SET name = $1, gender = $2, address = $3, mobile = $4, profile_img = $5
+      WHERE user_id = $6
+      RETURNING *; -- Return all columns of the updated user
+    `;
+    const updateUserValues = [
+      name,
+      gender,
+      address,
+      mobile,
+      profile_img,
+      user_id,
+    ];
+    const updatedUserResult = await db.query(updateUserQuery, updateUserValues);
+    const updatedUser = updatedUserResult.rows[0]; // Fetch the updated user details
+
+    // Update the mentee-specific information
+    const updateMenteeQuery = `
+      UPDATE mentees
+      SET occupation = $1 , dob = $2
+      WHERE user_id = $3;
+    `;
+    const updateMenteeValues = [occupation, dob, user_id];
+    await db.query(updateMenteeQuery, updateMenteeValues);
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Mentee profile updated successfully",
+      // user: updatedUser, // Return the updated user details
+    });
+  } catch (error) {
+    console.error(error.message);
+    return res.status(500).json({
+      error: error.message,
+    });
+  }
+};
+
+// Update Mentor Profile
+
+exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
+  const { user_id } = req.params; // Assuming user_id is available in the request
+  console.log(user_id);
+  const {
+    name,
+    gender,
+    address,
+    mobile,
+    experience,
+    degree,
+    medical_lic_num,
+  } = req.body;
+
+  try {
+    const pancard_img = formattedFileUrls.pancard_img[0].downloadURL;
+    const profile_img = formattedFileUrls.profile_img[0].downloadURL;
+    const adharcard_front_img =
+      formattedFileUrls.adharcard_front_img[0].downloadURL;
+    const adharcard_back_img =
+      formattedFileUrls.adharcard_back_img[0].downloadURL;
+    const doctor_reg_cert_img =
+      formattedFileUrls.doctor_reg_cert_img[0].downloadURL;
+
+    // Update the user's basic information
+    const updateUserQuery = `
+      UPDATE users
+      SET name = $1, gender = $2, address = $3, mobile = $4,  profile_img = $5
+      WHERE user_id = $6
+      RETURNING *; -- Return all columns of the updated user
+    `;
+    const updateUserValues = [
+      name,
+      gender,
+      address,
+      mobile,
+      profile_img,
+      user_id,
+    ];
+    const updatedUserResult = await db.query(updateUserQuery, updateUserValues);
+    const updatedUser = updatedUserResult.rows[0]; // Fetch the updated user details
+
+    // Update the mentor-specific information
+    const updateMentorQuery = `
+      UPDATE mentors
+      SET experience = $1, degree = $2, medical_lic_num = $3, pancard_img = $4, adharcard_front_img = $5, adharcard_back_img = $6, doctor_reg_cert_img = $7
+      WHERE user_id = $8;
+    `;
+    const updateMentorValues = [
+      experience,
+      degree,
+      medical_lic_num,
+      pancard_img,
+      adharcard_front_img,
+      adharcard_back_img,
+      doctor_reg_cert_img,
+      user_id,
+    ];
+    await db.query(updateMentorQuery, updateMentorValues);
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Mentor profile updated successfully",
+      // user: updatedUser, // Return the updated user details
+    });
+  } catch (error) {
+    console.error(error.message);
+    return res.status(500).json({
+      error: error.message,
+    });
+  }
+};
