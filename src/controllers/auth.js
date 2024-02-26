@@ -571,7 +571,7 @@ exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
     const userInfo = userInfoResult.rows[0];
 
     //Fetch All Mentor's Details
-    const mentorInfoQuery = `SELECT pancard_img = $1, adharcard_front_img = $2, adharcard_back_img = $3, doctor_reg_cert_img = $4 FROM mentors WHERE user_id = $5;`;
+    const mentorInfoQuery = `SELECT pancard_img, adharcard_front_img, adharcard_back_img, doctor_reg_cert_img  FROM mentors WHERE user_id = $1;`;
     const mentorInfoResult = await db.query(mentorInfoQuery, [user_id]);
     const mentorInfo = mentorInfoResult.rows[0];
 
@@ -608,6 +608,21 @@ exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
     const profile_img =
       formattedFileUrls.profile_img?.[0]?.downloadURL || userInfo.profile_img;
 
+    const pancard_img =
+      formattedFileUrls.pancard_img?.[0]?.downloadURL || mentorInfo.pancard_img;
+
+    const adharcard_front_img =
+      formattedFileUrls.adharcard_front_img?.[0]?.downloadURL ||
+      mentorInfo.adharcard_front_img;
+
+    const adharcard_back_img =
+      formattedFileUrls.adharcard_back_img?.[0]?.downloadURL ||
+      mentorInfo.adharcard_back_img;
+
+    const doctor_reg_cert_img =
+      formattedFileUrls.doctor_reg_cert_img?.[0]?.downloadURL ||
+      mentorInfo.doctor_reg_cert_img;
+
     // Update the user's basic information
     const updateUserQuery = `
       UPDATE users
@@ -635,13 +650,21 @@ exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
       experience,
       degree,
       medical_lic_num,
-      dbQueries[0],
-      dbQueries[1],
-      dbQueries[2],
-      dbQueries[3],
+      pancard_img,
+      adharcard_front_img,
+      adharcard_back_img,
+      doctor_reg_cert_img,
       user_id,
     ];
     dbQueries.push(db.query(updateMentorQuery, updateMentorValues));
+
+    console.log(
+      medical_lic_num,
+      pancard_img,
+      adharcard_front_img,
+      adharcard_back_img,
+      doctor_reg_cert_img
+    );
 
     // Execute all queries in parallel
     const results = await Promise.all(dbQueries);
