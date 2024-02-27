@@ -414,7 +414,24 @@ exports.logout = async (req, res) => {
 
 // Update Profile
 // firebase func For handling file duplicancy
+async function deleteFileFromStorage(fileUrl) {
+  try {
+    const fileNameWithEncoding = fileUrl.split("/").pop().split("?")[0];
+    const fileDecoded = decodeURIComponent(fileNameWithEncoding);
+    const desertRef = ref(storage, fileDecoded);
+    await deleteObject(desertRef);
+    console.log("Deleted file from bucket");
+  } catch (error) {
+    if (error.code === "storage/object-not-found") {
+      console.log("File does not exist in bucket:", fileUrl);
+    } else {
+      console.error("Error deleting file from bucket:", error.message);
+      throw error;
+    }
+  }
+}
 
+/*
 async function deleteFileFromStorage(fileUrl) {
   try {
     const fileNameWithEncoding = fileUrl.split("/").pop().split("?")[0];
@@ -427,6 +444,7 @@ async function deleteFileFromStorage(fileUrl) {
     throw error;
   }
 }
+*/
 
 // Update Mentee Profile
 exports.updateMenteeProfile = async (req, res, formattedFileUrls) => {
