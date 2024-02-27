@@ -413,6 +413,20 @@ exports.logout = async (req, res) => {
 };
 
 // Update Profile
+// firebase func For handling file duplicancy
+
+async function deleteFileFromStorage(fileUrl) {
+  try {
+    const fileNameWithEncoding = fileUrl.split("/").pop().split("?")[0];
+    const fileDecoded = decodeURIComponent(fileNameWithEncoding);
+    const desertRef = ref(storage, fileDecoded);
+    await deleteObject(desertRef);
+    console.log("Deleted file from bucket");
+  } catch (error) {
+    console.error("Error deleting file from bucket:", error.message);
+    throw error;
+  }
+}
 
 // Update Mentee Profile
 exports.updateMenteeProfile = async (req, res, formattedFileUrls) => {
@@ -430,7 +444,14 @@ exports.updateMenteeProfile = async (req, res, formattedFileUrls) => {
 
     const profile_img =
       formattedFileUrls.profile_img?.[0]?.downloadURL || userInfo.profile_img;
-
+    if (formattedFileUrls.profile_img && userInfo.profile_img) {
+      await deleteFileFromStorage(userInfo.profile_img);
+      // try {
+      // } catch (error) {
+      //   // Handle errors if needed
+      //   console.error("Error deleting previous profile image:", error.message);
+      // }
+    }
     // Update the user's basic information (excluding email)
     const updateUserQuery = `
       UPDATE users
@@ -479,20 +500,6 @@ exports.updateMenteeProfile = async (req, res, formattedFileUrls) => {
 };
 
 // Update Mentor Profile
-// firebase func For handling file duplicancy
-
-async function deleteFileFromStorage(fileUrl) {
-  try {
-    const fileNameWithEncoding = fileUrl.split("/").pop().split("?")[0];
-    const fileDecoded = decodeURIComponent(fileNameWithEncoding);
-    const desertRef = ref(storage, fileDecoded);
-    await deleteObject(desertRef);
-    console.log("Deleted file from bucket");
-  } catch (error) {
-    console.error("Error deleting file from bucket:", error.message);
-    throw error;
-  }
-}
 exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
   const { user_id } = req.params;
   const {
