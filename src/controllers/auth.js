@@ -2,7 +2,13 @@ const db = require("../../db.js");
 const { hash } = require("bcryptjs");
 const { sign } = require("jsonwebtoken");
 const { SECRET } = require("../constants");
+const { initializeApp } = require("firebase/app");
 
+const admin = require("firebase-admin");
+const { firebaseConfig } = require("../config/firebase_config");
+initializeApp(firebaseConfig);
+const { getStorage, ref, deleteObject } = require("firebase/storage");
+const storage = getStorage();
 // Get By Id Mentees
 
 exports.getMenteeById = async (req, res) => {
@@ -414,7 +420,16 @@ exports.updateMenteeProfile = async (req, res, formattedFileUrls) => {
   const { name, gender, dob, address, mobile, occupation } = req.body;
 
   try {
-    const profile_img = formattedFileUrls.profile_img[0].downloadURL;
+    const userInfoQuery = `
+    SELECT profile_img
+    FROM users
+    WHERE user_id = $1;
+  `;
+    const userInfoResult = await db.query(userInfoQuery, [user_id]);
+    const userInfo = userInfoResult.rows[0];
+
+    const profile_img =
+      formattedFileUrls.profile_img?.[0]?.downloadURL || userInfo.profile_img;
 
     // Update the user's basic information (excluding email)
     const updateUserQuery = `
@@ -464,88 +479,20 @@ exports.updateMenteeProfile = async (req, res, formattedFileUrls) => {
 };
 
 // Update Mentor Profile
+// firebase func For handling file duplicancy
 
-/*
-exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
-  const { user_id } = req.params; // Assuming user_id is available in the request
-  console.log(user_id);
-  const {
-    name,
-    gender,
-    address,
-    mobile,
-    experience,
-    degree,
-    medical_lic_num,
-  } = req.body;
-
+async function deleteFileFromStorage(fileUrl) {
   try {
-    const pancard_img = formattedFileUrls.pancard_img[0].downloadURL;
-    const profile_img = formattedFileUrls.profile_img[0].downloadURL;
-    const adharcard_front_img =
-      formattedFileUrls.adharcard_front_img[0].downloadURL;
-    const adharcard_back_img =
-      formattedFileUrls.adharcard_back_img[0].downloadURL;
-    const doctor_reg_cert_img =
-      formattedFileUrls.doctor_reg_cert_img[0].downloadURL;
-
-    // Update the user's basic information
-    const updateUserQuery = `
-      UPDATE users
-      SET name = $1, gender = $2, address = $3, mobile = $4,  profile_img = $5
-      WHERE user_id = $6
-      RETURNING *; -- Return all columns of the updated user
-    `;
-    const updateUserValues = [
-      name,
-      gender,
-      address,
-      mobile,
-      profile_img,
-      user_id,
-    ];
-    const updatedUserResult = await db.query(updateUserQuery, updateUserValues);
-    const updatedUser = updatedUserResult.rows[0]; // Fetch the updated user details
-
-    // Update the mentor-specific information
-    const updateMentorQuery = `
-      UPDATE mentors
-      SET experience = $1, degree = $2, medical_lic_num = $3, pancard_img = $4, adharcard_front_img = $5, adharcard_back_img = $6, doctor_reg_cert_img = $7
-      WHERE user_id = $8;
-    `;
-    const updateMentorValues = [
-      experience,
-      degree,
-      medical_lic_num,
-      pancard_img,
-      adharcard_front_img,
-      adharcard_back_img,
-      doctor_reg_cert_img,
-      user_id,
-    ];
-    await db.query(updateMentorQuery, updateMentorValues);
-
-    if (!updatedUser) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: "Mentor profile updated successfully",
-      // user: updatedUser, // Return the updated user details
-    });
+    const fileNameWithEncoding = fileUrl.split("/").pop().split("?")[0];
+    const fileDecoded = decodeURIComponent(fileNameWithEncoding);
+    const desertRef = ref(storage, fileDecoded);
+    await deleteObject(desertRef);
+    console.log("Deleted file from bucket");
   } catch (error) {
-    console.error(error.message);
-    return res.status(500).json({
-      error: error.message,
-    });
+    console.error("Error deleting file from bucket:", error.message);
+    throw error;
   }
-};
-*/
-
+}
 exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
   const { user_id } = req.params;
   const {
@@ -570,8 +517,12 @@ exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
     const userInfoResult = await db.query(userInfoQuery, [user_id]);
     const userInfo = userInfoResult.rows[0];
 
-    //Fetch All Mentor's Details
-    const mentorInfoQuery = `SELECT pancard_img, adharcard_front_img, adharcard_back_img, doctor_reg_cert_img  FROM mentors WHERE user_id = $1;`;
+    // Fetch All Mentor's Details
+    const mentorInfoQuery = `
+      SELECT pancard_img, adharcard_front_img, adharcard_back_img, doctor_reg_cert_img
+      FROM mentors
+      WHERE user_id = $1;
+    `;
     const mentorInfoResult = await db.query(mentorInfoQuery, [user_id]);
     const mentorInfo = mentorInfoResult.rows[0];
 
@@ -581,47 +532,81 @@ exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
       formattedFileUrls = {};
     }
 
-    // Check if each file is uploaded, if not, use the previous value
-    const filesToUpdate = [
-      { key: "pancard_img", value: formattedFileUrls.pancard_img?.[0] },
-      {
-        key: "adharcard_front_img",
-        value: formattedFileUrls.adharcard_front_img?.[0],
-      },
-      {
-        key: "adharcard_back_img",
-        value: formattedFileUrls.adharcard_back_img?.[0],
-      },
-      {
-        key: "doctor_reg_cert_img",
-        value: formattedFileUrls.doctor_reg_cert_img?.[0],
-      },
-    ];
-
-    for (const file of filesToUpdate) {
-      const fileUrl = file.value?.downloadURL;
-      const previousValue = fileUrl ? fileUrl : userInfo[file.key];
-      dbQueries.push(previousValue);
-    }
-
     // Check if profile_img is uploaded, if not, use the previous value
     const profile_img =
       formattedFileUrls.profile_img?.[0]?.downloadURL || userInfo.profile_img;
+    if (formattedFileUrls.profile_img && userInfo.profile_img) {
+      await deleteFileFromStorage(userInfo.profile_img);
+      // try {
+      // } catch (error) {
+      //   // Handle errors if needed
+      //   console.error("Error deleting previous profile image:", error.message);
+      // }
+    }
 
     const pancard_img =
       formattedFileUrls.pancard_img?.[0]?.downloadURL || mentorInfo.pancard_img;
+    if (formattedFileUrls.pancard_img && mentorInfo.pancard_img) {
+      await deleteFileFromStorage(mentorInfo.pancard_img);
+      // try {
+      //   await deleteFileFromStorage(mentorInfo.pancard_img);
+      // } catch (error) {
+      //   // Handle errors if needed
+      //   console.error("Error deleting previous pancard image:", error.message);
+      // }
+    }
 
     const adharcard_front_img =
       formattedFileUrls.adharcard_front_img?.[0]?.downloadURL ||
       mentorInfo.adharcard_front_img;
+    if (
+      formattedFileUrls.adharcard_front_img &&
+      mentorInfo.adharcard_front_img
+    ) {
+      await deleteFileFromStorage(mentorInfo.adharcard_front_img);
+      // try {
+      //   await deleteFileFromStorage(mentorInfo.adharcard_front_img);
+      // } catch (error) {
+      //   // Handle errors if needed
+      //   console.error(
+      //     "Error deleting previous adharcard front image:",
+      //     error.message
+      //   );
+      // }
+    }
 
     const adharcard_back_img =
       formattedFileUrls.adharcard_back_img?.[0]?.downloadURL ||
       mentorInfo.adharcard_back_img;
+    if (formattedFileUrls.adharcard_back_img && mentorInfo.adharcard_back_img) {
+      await deleteFileFromStorage(mentorInfo.adharcard_back_img);
+      // try {
+      // } catch (error) {
+      //   // Handle errors if needed
+      //   console.error(
+      //     "Error deleting previous adharcard back image:",
+      //     error.message
+      //   );
+      // }
+    }
 
     const doctor_reg_cert_img =
       formattedFileUrls.doctor_reg_cert_img?.[0]?.downloadURL ||
       mentorInfo.doctor_reg_cert_img;
+    if (
+      formattedFileUrls.doctor_reg_cert_img &&
+      mentorInfo.doctor_reg_cert_img
+    ) {
+      await deleteFileFromStorage(mentorInfo.doctor_reg_cert_img);
+      // try {
+      // } catch (error) {
+      //   // Handle errors if needed
+      //   console.error(
+      //     "Error deleting previous doctor reg cert image:",
+      //     error.message
+      //   );
+      // }
+    }
 
     // Update the user's basic information
     const updateUserQuery = `
@@ -658,18 +643,10 @@ exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
     ];
     dbQueries.push(db.query(updateMentorQuery, updateMentorValues));
 
-    console.log(
-      medical_lic_num,
-      pancard_img,
-      adharcard_front_img,
-      adharcard_back_img,
-      doctor_reg_cert_img
-    );
-
     // Execute all queries in parallel
     const results = await Promise.all(dbQueries);
 
-    const updatedUser = results[4].rows[0]; // Fetch the updated user details
+    const updatedUser = results[0].rows[0]; // Fetch the updated user details
 
     if (!updatedUser) {
       return res.status(404).json({
@@ -690,3 +667,121 @@ exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
     });
   }
 };
+
+// Without Del files during update profile
+
+/*
+exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
+  const { user_id } = req.params;
+  const {
+    name,
+    gender,
+    address,
+    mobile,
+    experience,
+    degree,
+    medical_lic_num,
+  } = req.body;
+
+  try {
+    const dbQueries = [];
+
+    // Fetch all mentor-specific information from the database
+    const userInfoQuery = `
+      SELECT profile_img
+      FROM users
+      WHERE user_id = $1;
+    `;
+    const userInfoResult = await db.query(userInfoQuery, [user_id]);
+    const userInfo = userInfoResult.rows[0];
+
+    // Fetch All Mentor's Details
+    const mentorInfoQuery = `
+      SELECT pancard_img, adharcard_front_img, adharcard_back_img, doctor_reg_cert_img
+      FROM mentors
+      WHERE user_id = $1;
+    `;
+    const mentorInfoResult = await db.query(mentorInfoQuery, [user_id]);
+    const mentorInfo = mentorInfoResult.rows[0];
+
+    // Check if formattedFileUrls is empty, if so, use previous values
+    if (!formattedFileUrls) {
+      console.log("Formatted file URLs are empty. Using previous values.");
+      formattedFileUrls = {};
+    }
+
+    // Check if profile_img is uploaded, if not, use the previous value
+    const profile_img = formattedFileUrls.profile_img?.[0]?.downloadURL;
+
+    const pancard_img = formattedFileUrls.pancard_img?.[0]?.downloadURL;
+
+    const adharcard_front_img =
+      formattedFileUrls.adharcard_front_img?.[0]?.downloadURL;
+
+    const adharcard_back_img =
+      formattedFileUrls.adharcard_back_img?.[0]?.downloadURL;
+
+    const doctor_reg_cert_img =
+      formattedFileUrls.doctor_reg_cert_img?.[0]?.downloadURL;
+
+    // Update the user's basic information
+    const updateUserQuery = `
+      UPDATE users
+      SET name = $1, gender = $2, address = $3, mobile = $4, profile_img = $5
+      WHERE user_id = $6
+      RETURNING *;
+    `;
+    const updateUserValues = [
+      name,
+      gender,
+      address,
+      mobile,
+      profile_img,
+      user_id,
+    ];
+    dbQueries.push(db.query(updateUserQuery, updateUserValues));
+
+    // Update the mentor-specific information
+    const updateMentorQuery = `
+      UPDATE mentors
+      SET experience = $1, degree = $2, medical_lic_num = $3, pancard_img = $4, adharcard_front_img = $5, adharcard_back_img = $6, doctor_reg_cert_img = $7
+      WHERE user_id = $8;
+    `;
+    const updateMentorValues = [
+      experience,
+      degree,
+      medical_lic_num,
+      pancard_img,
+      adharcard_front_img,
+      adharcard_back_img,
+      doctor_reg_cert_img,
+      user_id,
+    ];
+    dbQueries.push(db.query(updateMentorQuery, updateMentorValues));
+    console.log("All Queries", updateMentorValues);
+
+    // Execute all queries in parallel
+    const results = await Promise.all(dbQueries);
+
+    const updatedUser = results[0].rows[0]; // Fetch the updated user details
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Mentor profile updated successfully",
+      // user: updatedUser, // Return the updated user details
+    });
+  } catch (error) {
+    console.error(error.message);
+    return res.status(500).json({
+      error: error.message,
+    });
+  }
+};
+*/

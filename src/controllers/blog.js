@@ -1,21 +1,13 @@
 const db = require("../../db.js");
 
-// Firebase Setup
+// ****** Firebase Setup Start  ******
+
 const admin = require("firebase-admin");
 const { firebaseConfig } = require("../config/firebase_config");
-// Import necessary functions from Firebase Storage
 const { getStorage, ref, deleteObject } = require("firebase/storage");
-
-// Get a reference to the Firebase Storage instance
 const storage = getStorage();
 
-// Initialize the Firebase Admin SDK
-// admin.initializeApp({
-//   credential: admin.credential.applicationDefault(),
-//   storageBucket: firebaseConfig.storageBucket, // Assuming you have the storageBucket in your firebaseConfig
-// });
-
-// Firebase Setup End
+// **** Firebase Setup End ******
 
 // Create a new blog post
 exports.createBlog = async (req, res, formattedFileUrls) => {
@@ -165,13 +157,6 @@ exports.deleteBlogById = async (req, res) => {
     const fileNameWithEncoding = previewUrl.split("/").pop().split("?")[0];
     const fileUrl = decodeURIComponent(fileNameWithEncoding);
 
-    // // Create a reference to the file to delete
-    // const fileRef = storage.refFromURL(fileUrl);
-
-    // console.log("File in database before delete exists : " + fileRef.exists());
-
-    // Delete the file using the delete() method
-    // Create a reference to the file to delete
     const desertRef = ref(storage, `${fileUrl}`);
 
     // Delete the file
