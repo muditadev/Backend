@@ -453,22 +453,32 @@ exports.updateMenteeProfile = async (req, res, formattedFileUrls) => {
 
   try {
     const userInfoQuery = `
-    SELECT profile_img
+    SELECT  name, gender, address, mobile, profile_img
     FROM users
     WHERE user_id = $1;
   `;
     const userInfoResult = await db.query(userInfoQuery, [user_id]);
     const userInfo = userInfoResult.rows[0];
 
+    const menteeInfoQuery = `
+    SELECT  dob, occupation
+    FROM mentees
+    WHERE user_id = $1;
+  `;
+    const menteeInfoResult = await db.query(menteeInfoQuery, [user_id]);
+    const menteeInfo = menteeInfoResult.rows[0];
+
+    const myname = name || userInfo.name;
+    const mygender = gender || userInfo.gender;
+    const myaddress = address || userInfo.address;
+    const mymobile = mobile || userInfo.mobile;
+    const mydob = dob || menteeInfo.dob;
+    const myoccupation = occupation || menteeInfo.occupation;
+
     const profile_img =
       formattedFileUrls.profile_img?.[0]?.downloadURL || userInfo.profile_img;
     if (formattedFileUrls.profile_img && userInfo.profile_img) {
       await deleteFileFromStorage(userInfo.profile_img);
-      // try {
-      // } catch (error) {
-      //   // Handle errors if needed
-      //   console.error("Error deleting previous profile image:", error.message);
-      // }
     }
     // Update the user's basic information (excluding email)
     const updateUserQuery = `
@@ -478,10 +488,10 @@ exports.updateMenteeProfile = async (req, res, formattedFileUrls) => {
       RETURNING *; -- Return all columns of the updated user
     `;
     const updateUserValues = [
-      name,
-      gender,
-      address,
-      mobile,
+      myname,
+      mygender,
+      myaddress,
+      mymobile,
       profile_img,
       user_id,
     ];
@@ -494,7 +504,7 @@ exports.updateMenteeProfile = async (req, res, formattedFileUrls) => {
       SET occupation = $1 , dob = $2
       WHERE user_id = $3;
     `;
-    const updateMenteeValues = [occupation, dob, user_id];
+    const updateMenteeValues = [myoccupation, mydob, user_id];
     await db.query(updateMenteeQuery, updateMenteeValues);
 
     if (!updatedUser) {
@@ -535,7 +545,7 @@ exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
 
     // Fetch all mentor-specific information from the database
     const userInfoQuery = `
-      SELECT profile_img
+      SELECT name, gender, address, mobile, profile_img
       FROM users
       WHERE user_id = $1;
     `;
@@ -544,12 +554,20 @@ exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
 
     // Fetch All Mentor's Details
     const mentorInfoQuery = `
-      SELECT pancard_img, adharcard_front_img, adharcard_back_img, doctor_reg_cert_img
+      SELECT experience, degree, medical_lic_num,pancard_img, adharcard_front_img, adharcard_back_img, doctor_reg_cert_img
       FROM mentors
       WHERE user_id = $1;
     `;
     const mentorInfoResult = await db.query(mentorInfoQuery, [user_id]);
     const mentorInfo = mentorInfoResult.rows[0];
+
+    const myname = name || userInfo.name;
+    const mygender = gender || userInfo.gender;
+    const myaddress = address || userInfo.address;
+    const mymobile = mobile || userInfo.mobile;
+    const myexperience = experience || mentorInfo.experience;
+    const mydegree = degree || mentorInfo.degree;
+    const mymedical_lic_num = medical_lic_num || mentorInfo.medical_lic_num;
 
     // Check if formattedFileUrls is empty, if so, use previous values
     if (!formattedFileUrls) {
@@ -641,10 +659,10 @@ exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
       RETURNING *;
     `;
     const updateUserValues = [
-      name,
-      gender,
-      address,
-      mobile,
+      myname,
+      mygender,
+      myaddress,
+      mymobile,
       profile_img,
       user_id,
     ];
@@ -657,9 +675,9 @@ exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
       WHERE user_id = $8;
     `;
     const updateMentorValues = [
-      experience,
-      degree,
-      medical_lic_num,
+      myexperience,
+      mydegree,
+      mymedical_lic_num,
       pancard_img,
       adharcard_front_img,
       adharcard_back_img,
