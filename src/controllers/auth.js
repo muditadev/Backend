@@ -51,7 +51,7 @@ exports.getMentorById = async (req, res) => {
 
   try {
     const query = `
-      SELECT users.user_id, users.name, users.email, users.mobile, users.profile_img, mentors.experience, mentors.degree, mentors.medical_lic_num,  mentors.pancard_img, mentors.adharcard_front_img, mentors.adharcard_back_img, mentors.doctor_reg_cert_img
+      SELECT users.user_id, users.name, users.email, users.mobile, users.profile_img, mentors.experience, mentors.degree, mentors.medical_lic_num,  mentors.pancard_img, mentors.adharcard_front_img, mentors.adharcard_back_img, mentors.doctor_reg_cert_img, mentors.is_approved
       FROM users
       INNER JOIN mentors ON users.user_id = mentors.user_id
       WHERE users.user_id = $1;
@@ -138,7 +138,7 @@ exports.getAllMentors = async (req, res) => {
 
     // Query to fetch paginated mentors
     const query = `
-      SELECT users.user_id, users.name, users.email, users.mobile, mentors.experience, mentors.degree, mentors.medical_lic_num, users.profile_img, mentors.pancard_img, mentors.adharcard_front_img, mentors.adharcard_back_img, mentors.doctor_reg_cert_img
+      SELECT users.user_id, users.name, users.email, users.mobile, mentors.experience, mentors.degree, mentors.medical_lic_num, users.profile_img, mentors.pancard_img, mentors.adharcard_front_img, mentors.adharcard_back_img, mentors.doctor_reg_cert_img, mentors.is_approved
       FROM users
       INNER JOIN mentors ON users.user_id = mentors.user_id
       WHERE users.role = 'mentor'
