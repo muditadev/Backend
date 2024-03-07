@@ -11,6 +11,7 @@ const {
   getMenteeById,
   updateMentorProfile,
   updateMenteeProfile,
+  approveMentorProfile,
 } = require("../controllers/auth");
 const {
   validationMiddleware,
@@ -323,5 +324,8 @@ router.put(
     }
   }
 );
+
+// Approve Mentor Profile
+router.get("/approveMentor/:user_id", approveMentorProfile);
 
 module.exports = router;

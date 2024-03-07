@@ -828,3 +828,29 @@ exports.updateMentorProfile = async (req, res, formattedFileUrls) => {
   }
 };
 */
+
+// Is Approved API
+exports.approveMentorProfile = async (req, res) => {
+  const user_id = req.params.user_id;
+
+  try {
+    const updateMentorQuery = `
+      UPDATE mentors
+      SET is_approved = $1
+      WHERE user_id = $2;
+    `;
+    const updateMentorValues = [true, user_id];
+    await db.query(updateMentorQuery, updateMentorValues);
+
+    return res.status(200).json({
+      success: true,
+      message: "Mentor profile Approved successfully",
+      // user: updatedUser, // Return the updated user details
+    });
+  } catch (error) {
+    console.error(error.message);
+    return res.status(500).json({
+      error: error.message,
+    });
+  }
+};
