@@ -24,6 +24,7 @@ const blogRoutes = require("./src/routes/blog");
 const bannerRoutes = require("./src/routes/banner");
 const socialRoutes = require("./src/routes/social_media");
 const techniqueRoutes = require("./src/routes/technique");
+const faqRoutes = require("./src/routes/faq");
 
 //initialize routes
 app.use("/api/v1", authRoutes);
@@ -35,6 +36,7 @@ app.use("/api/v1/banner", bannerRoutes);
 app.use("/api/v1/sos", sosRoutes);
 app.use("/api/v1/social", socialRoutes);
 app.use("/api/v1/technique", techniqueRoutes);
+app.use("/api/v1/faq", faqRoutes);
 
 //app start
 const appStart = () => {
