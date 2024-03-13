@@ -53,3 +53,40 @@ exports.saveUserAnswersBulk = async (req, res) => {
     });
   }
 };
+
+exports.getUserScoresForQuiz = async (req, res) => {
+  const { userId, quizId } = req.params;
+
+  try {
+    // Query to fetch user scores for the specified quiz
+    const query = `
+      SELECT score
+      FROM UserScores
+      WHERE user_id = $1 AND quiz_id = $2;
+    `;
+
+    // Execute the query
+    const { rows } = await db.query(query, [userId, quizId]);
+
+    // Check if user has scores for the specified quiz
+    if (rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: "User scores not found for the specified quiz.",
+      });
+    }
+
+    // Extract the score from the result
+    const score = rows[0].score;
+
+    return res.status(200).json({
+      success: true,
+      data: { score },
+    });
+  } catch (error) {
+    console.error(error.message);
+    return res.status(500).json({
+      error: error.message,
+    });
+  }
+};
